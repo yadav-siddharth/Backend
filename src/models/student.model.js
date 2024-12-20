@@ -59,6 +59,9 @@ const studentSchema = new Schema(
         ref: "Teacher",
       },
     ],
+    refreshToken: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
