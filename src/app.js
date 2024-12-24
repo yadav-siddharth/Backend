@@ -6,7 +6,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: procees.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN,
   })
 );
 
@@ -25,3 +25,5 @@ app.use(
 
 app.use(express.static("public"));
 app.use(cookieParser());
+
+export { app };
