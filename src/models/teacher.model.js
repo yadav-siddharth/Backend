@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 const teacherSchema = new Schema(
@@ -38,11 +38,9 @@ const teacherSchema = new Schema(
     },
     teacherFees: {
       type: Number,
-      required: true,
     },
     timeAvailable: {
       type: String,
-      required: true,
     },
     teacherPhoto: {
       type: String,
@@ -79,7 +77,7 @@ teacherSchema.methods.generateAccessToken = function () {
       fullName: this.fullName,
       teacherAge: this.teacherAge,
     },
-    process.env.ACCESS_TOKEN_SCERET,
+    process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
   );
 };
@@ -89,7 +87,7 @@ teacherSchema.methods.generateRefreshToken = function () {
     {
       _id: this._id,
     },
-    process.env.REFRESH_TOKEN_SCERET,
+    process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
   );
 };

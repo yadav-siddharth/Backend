@@ -82,7 +82,6 @@ studentSchema.methods.generateAccesToken = function () {
       _id: this._id,
       username: this.username,
       fullName: this.fullName,
-      parentName: this.parentName,
       studentStd: this.studentStd,
     },
     process.env.ACCESS_TOKEN_SECRET,
