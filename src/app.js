@@ -1,6 +1,8 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+// routes
+import studentRouter from "./routes/user.routes.js";
 
 const app = express();
 
@@ -25,5 +27,8 @@ app.use(
 
 app.use(express.static("public"));
 app.use(cookieParser());
+
+// routes declartion
+app.use("/api/v1/student", studentRouter);
 
 export { app };

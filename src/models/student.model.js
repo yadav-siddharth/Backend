@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 const studentSchema = new Schema(
@@ -23,7 +23,6 @@ const studentSchema = new Schema(
     },
     parentName: {
       type: String,
-      required: true,
     },
     parentEmail: {
       type: String,
@@ -32,7 +31,7 @@ const studentSchema = new Schema(
       type: Number,
       required: true,
     },
-    ParentMobile: {
+    parentMobile: {
       type: Number,
       required: true,
     },
