@@ -3,6 +3,7 @@ import { Student } from "../models/student.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// register student controller
 const registerStudent = asyncHandler(async (req, res) => {
   const {
     username,
@@ -40,7 +41,7 @@ const registerStudent = asyncHandler(async (req, res) => {
     username: username.toLowerCase(),
     fullName: fullName,
     password: password,
-    role: role,
+    role: role.toLowerCase(),
     studentAge: studentAge,
     schoolName: schoolName,
     parentMobile: parentMobile,
@@ -62,6 +63,7 @@ const registerStudent = asyncHandler(async (req, res) => {
     );
 });
 
+// genreate access and refresh token when login
 const generateAccessRefreshToken = async (studentID) => {
   try {
     const student = await Student.findById(studentID);
@@ -80,6 +82,7 @@ const generateAccessRefreshToken = async (studentID) => {
   }
 };
 
+// login controller
 const loginStudent = asyncHandler(async (req, res) => {
   const { username, role, password } = req.body;
   if (!(username || password)) {
@@ -124,6 +127,7 @@ const loginStudent = asyncHandler(async (req, res) => {
     );
 });
 
+// logout controller
 const logoutStudent = asyncHandler(async (req, res) => {
   await Student.findByIdAndUpdate(
     req.student._id,
@@ -147,10 +151,133 @@ const logoutStudent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Student Logout Successfully !"));
 });
 
+// get data controller
 const getStudent = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, req.student, "Student data fetched!"));
 });
 
-export { registerStudent, loginStudent, logoutStudent, getStudent };
+// refresh access token controller
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingToken = req.cookies?.refreshToken || req.body?.refreshToken;
+
+  if (!incomingToken) {
+    throw new ApiError(401, "Unauthorized request Please try to login!");
+  }
+
+  try {
+    const decoded = jwt.verify(incomingToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const student = await UserActivation.findById(decoded?._id);
+
+    if (!student) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    if (incomingToken !== decoded?.refreshToken) {
+      throw new ApiError(401, "Refresh token could not be matched or expired!");
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newRefreshToken } = await generateAccessRefreshToken(
+      student._id
+    );
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access Token refreshed !"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid refresh token");
+  }
+});
+
+// change current password
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { password, newPassword } = req.body;
+
+  if (!(password || newPassword)) {
+    throw new ApiError(401, "Paasword is required !");
+  }
+
+  const student = await Student.findById(req.student._id);
+  const isPasswordVaild = await student.isPasswordCorrect(password);
+  if (!isPasswordVaild) {
+    throw new ApiError(401, "Invalid password");
+  }
+
+  student.password = newPassword;
+  await student.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password Changed Successfully!"));
+});
+
+// update profile student
+
+const updateStudentProfile = asyncHandler(async (req, res) => {
+  const {
+    fullName,
+    parentName,
+    parentEmail,
+    studentAge,
+    parentMobile,
+    schoolName,
+    studentStd,
+    studentBoard,
+    studentBatch,
+  } = req.body;
+
+  if (!(fullName || schoolName || parentMobile || studentAge || studentStd)) {
+    throw new ApiError(401, "All fileds are required!");
+  }
+
+  const student = await Student.findByIdAndUpdate(
+    req.student._id,
+    {
+      $set: {
+        fullName: fullName,
+        schoolName: schoolName,
+        parentMobile: parentMobile,
+        studentAge: studentAge,
+        studentStd: studentStd,
+        studentBoard: studentBoard,
+        studentBatch: studentBatch,
+        parentName: parentName,
+        parentEmail: parentEmail,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, student, "Student profile updated succesfully !")
+    );
+});
+
+export {
+  registerStudent,
+  loginStudent,
+  logoutStudent,
+  getStudent,
+  refreshAccessToken,
+  changePassword,
+  updateStudentProfile,
+};

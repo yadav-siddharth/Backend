@@ -3,6 +3,7 @@ import { Teacher } from "../models/teacher.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// register teacher controller
 const registerTeacher = asyncHandler(async (req, res) => {
   const { password, username, role, fullName, teacherAge, teacherMobile } =
     req.body;
@@ -21,10 +22,10 @@ const registerTeacher = asyncHandler(async (req, res) => {
   }
 
   const teacher = await Teacher.create({
-    username: username,
+    username: username.toLowerCase(),
     fullName: fullName,
     password: password,
-    role: role,
+    role: role.toLowerCase(),
     teacherAge: teacherAge,
     teacherMobile: teacherMobile,
   });
@@ -43,6 +44,7 @@ const registerTeacher = asyncHandler(async (req, res) => {
     );
 });
 
+// generate access token and refresh token on login
 const generateAccessRefreshTokenTeacher = async (teacherID) => {
   try {
     const teacher = await Teacher.findById(teacherID);
@@ -62,6 +64,7 @@ const generateAccessRefreshTokenTeacher = async (teacherID) => {
   }
 };
 
+// login controller teacher
 const loginTeacher = asyncHandler(async (req, res) => {
   const { username, role, password } = req.body;
   if (!(username || password)) {
@@ -106,6 +109,7 @@ const loginTeacher = asyncHandler(async (req, res) => {
     );
 });
 
+// logout controller
 const logoutTeacher = asyncHandler(async (req, res) => {
   await Teacher.findByIdAndUpdate(
     req.teacher._id,
@@ -128,10 +132,135 @@ const logoutTeacher = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Teacher Logout Successfully !"));
 });
 
+// get data teacher
 const getTeacher = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, req.teacher, "Teacher data fetched!"));
 });
 
-export { registerTeacher, loginTeacher, logoutTeacher, getTeacher };
+// refersh Acces token controller
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingToken = req.cookies?.refreshToken || req.body.refershToken;
+
+  if (!incomingToken) {
+    throw new ApiError(401, "Unauthorized request try to Login!");
+  }
+
+  try {
+    const decoded = jwt.verify(incomingToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const teacher = await Teacher.findById(decoded._id);
+
+    if (!teacher) {
+      throw new ApiError(401, "Invalid Refresh token!");
+    }
+
+    if (incomingToken !== decoded?.refershToken) {
+      throw new ApiError(401, "Refresh token could not matched or exipred!");
+    }
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessRefreshTokenTeacher(teacher._id);
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access Token Refreshed!"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid refresh token");
+  }
+});
+
+// change current password
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { password, newPassword } = req.body;
+
+  if (!(password || newPassword)) {
+    throw new ApiError(401, "Password is required!");
+  }
+
+  const teacher = await Teacher.findById(req.teacher._id);
+  const isPasswordVaild = await teacher.isPasswordCorrect(password);
+
+  if (!isPasswordVaild) {
+    throw new ApiError(401, "Invalid password");
+  }
+
+  teacher.password = newPassword;
+  await teacher.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully!"));
+});
+
+// update teacher profile
+
+const updateTeacherProfile = asyncHandler(async (req, res) => {
+  const {
+    fullName,
+    teacherAge,
+    teacherMobile,
+    subjectSpecific,
+    teacherEmail,
+    teacherFees,
+    timeAvailable,
+  } = req.body;
+
+  if (
+    !(
+      fullName ||
+      teacherAge ||
+      teacherEmail ||
+      teacherFees ||
+      timeAvailable ||
+      teacherMobile
+    )
+  ) {
+    throw new ApiError(401, "All fields are required!");
+  }
+
+  const teacher = await Teacher.findByIdAndUpdate(
+    req.teacher._id,
+    {
+      $set: {
+        fullName: fullName,
+        teacherAge: teacherAge,
+        teacherEmail: teacherEmail,
+        teacherFees: teacherFees,
+        timeAvailable: timeAvailable,
+        teacherMobile: teacherMobile,
+        subjectSpecific: subjectSpecific,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, teacher, "Teacher profile updated!"));
+});
+
+export {
+  registerTeacher,
+  loginTeacher,
+  logoutTeacher,
+  getTeacher,
+  refreshAccessToken,
+  changePassword,
+  updateTeacherProfile,
+};
