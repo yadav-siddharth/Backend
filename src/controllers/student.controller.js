@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Student } from "../models/student.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // register student controller
 const registerStudent = asyncHandler(async (req, res) => {
@@ -272,6 +273,35 @@ const updateStudentProfile = asyncHandler(async (req, res) => {
     );
 });
 
+// student photo upload controller
+
+const updateStudentAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalFilePath = req.file?.path;
+
+  if (!avatarLocalFilePath) {
+    throw new ApiError(401, "Avatar is required!");
+  }
+  const avatar = await uploadOnCloudinary(avatarLocalFilePath);
+
+  if (!avatar.url) {
+    throw new ApiError(400, "Error while uploading on cloudinary!");
+  }
+
+  const student = await Student.findByIdAndUpdate(
+    req.student._id,
+    {
+      $set: {
+        studentPhoto: avatar?.url,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, student, "Photo uploded Successfully!"));
+});
+
 export {
   registerStudent,
   loginStudent,
@@ -280,4 +310,5 @@ export {
   refreshAccessToken,
   changePassword,
   updateStudentProfile,
+  updateStudentAvatar,
 };

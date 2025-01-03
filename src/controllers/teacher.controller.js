@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Teacher } from "../models/teacher.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // register teacher controller
 const registerTeacher = asyncHandler(async (req, res) => {
@@ -255,6 +256,35 @@ const updateTeacherProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, teacher, "Teacher profile updated!"));
 });
 
+// upload teacher photo
+const uploadTeacherAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalFilePath = req.file?.path;
+
+  if (!avatarLocalFilePath) {
+    throw new ApiError(400, "Avatar is Required!");
+  }
+
+  const avatar = await uploadOnCloudinary(avatarLocalFilePath);
+
+  if (!avatar.url) {
+    throw new ApiError(400, "Error while uploading on cloudinary!");
+  }
+
+  const teacher = await Teacher.findByIdAndUpdate(
+    req.teacher._id,
+    {
+      $set: {
+        teacherPhoto: avatar?.url,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, teacher, "Teacher Photo Uploded Successfully!"));
+});
+
 export {
   registerTeacher,
   loginTeacher,
@@ -263,4 +293,5 @@ export {
   refreshAccessToken,
   changePassword,
   updateTeacherProfile,
+  uploadTeacherAvatar,
 };
